@@ -182,7 +182,7 @@ class Job(models.Model):
         """
         Runs this ``Job``.  If ``wait`` is ``True`` any call to this function will not return
         untill the ``Job`` is complete (or fails).  This actually calls the management command
-        ``run_job`` via a subprocess.  If you call this and want to wait for the process to
+        ``kitsune_run_job`` via a subprocess.  If you call this and want to wait for the process to
         complete, pass ``wait=True``.
         
         A ``Log`` will be created if there is any output from either stdout or stderr.
@@ -191,7 +191,7 @@ class Job(models.Model):
         """
         if not self.disabled and self.host.name == gethostname():
             if not self.check_is_running() and self.is_due():
-                p = subprocess.Popen(['python', get_manage_py(), 'run_job', str(self.pk)])
+                p = subprocess.Popen(['python', get_manage_py(), 'kitsune_run_job', str(self.pk)])
                 if wait:
                     p.wait()
                 return p
@@ -200,7 +200,7 @@ class Job(models.Model):
     def handle_run(self):
         """
         This method implements the code to actually run a job.  This is meant to be run, primarily,
-        by the `run_job` management command as a subprocess, which can be invoked by calling
+        by the `kitsune_run_job` management command as a subprocess, which can be invoked by calling
         this job's ``run_job`` method.
         """     
         args, options = self.get_args()
@@ -288,7 +288,7 @@ class Job(models.Model):
                     pname = pid_re.findall(p.stdout.read())[0]
                 except IndexError:
                     pname = ''
-                if pname.find('run_job %d' % self.pk) > -1:
+                if pname.find('kitsune_run_job %d' % self.pk) > -1:
                     # This Job is still running
                     return True
                 else:
