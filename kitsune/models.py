@@ -67,7 +67,7 @@ class Job(models.Model):
     subscribers = models.ManyToManyField(User, blank=True, related_name='kitsune_jobs', limit_choices_to={'is_staff':True})
     pid = models.IntegerField(blank=True, null=True, editable=False)
     force_run = models.BooleanField(default=False)
-    host_name = models.CharField(max_length=128, choices=HOST_NAME_CHOICES)
+    host = models.ForeignKey('Host')
     
     objects = JobManager()
     
@@ -189,7 +189,7 @@ class Job(models.Model):
         
         Returns the process, a ``subprocess.Popen`` instance, or None.
         """
-        if not self.disabled and self.host_name == gethostname():
+        if not self.disabled and self.host.name == gethostname():
             if not self.check_is_running() and self.is_due():
                 p = subprocess.Popen(['python', get_manage_py(), 'run_job', str(self.pk)])
                 if wait:
@@ -328,3 +328,16 @@ class Log(models.Model):
                 recipient_list = subscribers,
                 message = "Ouput:\n%s\nError output:\n%s" % (self.stdout, self.stderr)
             )
+
+
+class Host(models.Model):
+    """
+    The hosts to be checked.
+    """
+    name = models.CharField(blank=False, max_length=150)
+    ip = models.CharField(blank=True, max_length=15)
+    description = models.TextField(blank=True)
+    
+    def __unicode__(self):
+        return self.name
+    

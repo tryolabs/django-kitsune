@@ -14,7 +14,7 @@ from django.utils.safestring import mark_safe
 from django.utils.text import capfirst
 from django.utils.translation import ungettext, get_date_formats, ugettext_lazy as _
 
-from kitsune.models import Job, Log
+from kitsune.models import Job, Log, Host
 
 from datetime import datetime
 
@@ -35,7 +35,7 @@ class HTMLWidget(forms.Widget):
 
 class JobAdmin(admin.ModelAdmin):
     actions = ['run_selected_jobs']
-    list_display = ('name', 'host_name', 'last_run_with_link', 'get_timeuntil',
+    list_display = ('name', 'host', 'last_run_with_link', 'get_timeuntil',
                     'get_frequency',  'is_running', 'run_button', 'view_logs_button')
     list_display_links = ('name', )
     list_filter = ('last_run_successful', 'frequency', 'disabled')
@@ -43,7 +43,7 @@ class JobAdmin(admin.ModelAdmin):
     fieldsets = (
         ('Job Details', {
             'classes': ('wide',),
-            'fields': ('name', 'host_name', 'command', 'args', 'disabled',)
+            'fields': ('name', 'host', 'command', 'args', 'disabled',)
         }),
         ('E-mail subscriptions', {
             'classes': ('wide',),
@@ -217,3 +217,4 @@ except admin.sites.AlreadyRegistered:
     pass
 
 admin.site.register(Log, LogAdmin)
+admin.site.register(Host)
