@@ -1,8 +1,15 @@
+# -*- coding: utf-8 -
 '''
 Created on Mar 3, 2012
 
-@author: raul
+@author: Raul Garreta (raul@tryolabs.com)
+
+Defines the base Kitsune job renderer.
+All custom Kitsune job renderers must extend KitsuneJobRenderer.
 '''
+
+__author__      = "Raul Garreta (raul@tryolabs.com)"
+
 
 from django.template.loader import render_to_string
 

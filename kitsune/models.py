@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -
+'''
+Created on Mar 3, 2012
+
+@author: Raul Garreta (raul@tryolabs.com)
+
+Kitsune models.
+Based on django-chronograph.
+
+'''
+
+__author__      = "Raul Garreta (raul@tryolabs.com)"
+
+
 import os
 import re
 import subprocess
@@ -17,6 +31,7 @@ from django.template import loader, Context
 from django.utils.timesince import timeuntil
 from django.utils.translation import ungettext, ugettext, ugettext_lazy as _
 from django.utils.encoding import smart_str
+from django.core import urlresolvers
 
 from kitsune.utils import get_manage_py
 from kitsune.renderers import KitsuneJobRenderer
@@ -348,6 +363,8 @@ class Log(models.Model):
 #                message = "Ouput:\n%s\nError output:\n%s" % (self.stdout, self.stderr)
 #            )
 
+    def admin_link(self):
+        return urlresolvers.reverse('admin:kitsune_' + self.__class__.__name__.lower() + '_change', args=(self.id,))
 
 class Host(models.Model):
     """

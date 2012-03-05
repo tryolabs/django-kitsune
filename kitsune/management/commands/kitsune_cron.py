@@ -1,3 +1,19 @@
+# -*- coding: utf-8 -
+'''
+Created on Mar 3, 2012
+
+@author: Raul Garreta (raul@tryolabs.com)
+
+Management command called by cron.
+Calls run for all jobs.
+
+Based on django-chronograph.
+
+'''
+
+__author__      = "Raul Garreta (raul@tryolabs.com)"
+
+
 from django.core.management.base import BaseCommand
 
 class Command(BaseCommand):

@@ -1,3 +1,15 @@
+# -*- coding: utf-8 -
+'''
+Created on Mar 3, 2012
+
+@author: Raul Garreta (raul@tryolabs.com)
+
+Dummy check to test functionality.
+
+'''
+
+__author__      = "Raul Garreta (raul@tryolabs.com)"
+
 
 from kitsune.renderers import STATUS_OK, STATUS_WARNING, STATUS_CRITICAL, STATUS_UNKNOWN
 from kitsune.base import BaseKitsuneCheck

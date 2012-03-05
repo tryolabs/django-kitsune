@@ -1,8 +1,15 @@
+# -*- coding: utf-8 -
 '''
 Created on Mar 5, 2012
 
-@author: raul
+@author: Raul Garreta (raul@tryolabs.com)
+
+Defines base kitsune check.
+All custom kitsune checks must define a Command class that extends BaseKitsuneCheck.
+
 '''
+
+__author__      = "Raul Garreta (raul@tryolabs.com)"
 
 import sys
 import traceback

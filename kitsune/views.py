@@ -1,3 +1,16 @@
+# -*- coding: utf-8 -
+'''
+Created on Mar 3, 2012
+
+@author: Raul Garreta (raul@tryolabs.com)
+
+Based on django-chronograph.
+
+'''
+
+__author__      = "Raul Garreta (raul@tryolabs.com)"
+
+
 from django.contrib import admin
 from django.contrib.auth.decorators import user_passes_test
 from admin import JobAdmin

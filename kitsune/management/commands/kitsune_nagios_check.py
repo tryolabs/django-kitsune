@@ -1,3 +1,20 @@
+# -*- coding: utf-8 -
+'''
+Created on Mar 5, 2012
+
+@author: Raul Garreta (raul@tryolabs.com)
+
+Kitsune check that wrapps any Nagios check.
+All necessary parameters must be passed through args field at admin interface.
+A special option: "check" must be passed with the name of the Nagios check to run.
+eg:
+check=check_disk -u=GB -w=5 -c=2 -p=/
+
+'''
+
+__author__      = "Raul Garreta (raul@tryolabs.com)"
+
+
 from kitsune.base import BaseKitsuneCheck
 from kitsune.nagios import NagiosPoller
 from kitsune.monitor import ArgSet

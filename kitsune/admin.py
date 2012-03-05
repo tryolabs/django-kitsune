@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -
+'''
+Created on Mar 3, 2012
+
+@author: Raul Garreta (raul@tryolabs.com)
+
+Admin interface.
+Based on django-chronograph.
+
+'''
+
+__author__      = "Raul Garreta (raul@tryolabs.com)"
+
+
 import sys
 import inspect
 import pkgutil
@@ -125,7 +139,7 @@ class JobAdmin(admin.ModelAdmin):
     def status_message(self, obj):
         if obj.last_result is not None:
             Renderer = get_class(obj.renderer)
-            return Renderer().get_html_message(obj.last_result)
+            return '<a href=' + obj.last_result.admin_link() + '>' + Renderer().get_html_message(obj.last_result) + '</a>'
         else:
             return '--'
     status_message.allow_tags = True
