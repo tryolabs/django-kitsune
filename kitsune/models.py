@@ -1,3 +1,14 @@
+import os
+import re
+import subprocess
+import sys
+import traceback
+import inspect
+from socket import gethostname
+from datetime import datetime
+from dateutil import rrule
+from StringIO import StringIO
+
 from django.contrib.auth.models import User
 from django.conf import settings
 from django.core.management import call_command
@@ -10,18 +21,6 @@ from django.utils.encoding import smart_str
 from kitsune.utils import get_manage_py
 from kitsune.renderers import KitsuneJobRenderer
 
-
-import os
-import re
-import subprocess
-import sys
-import traceback
-import inspect
-from socket import gethostname
-
-from datetime import datetime
-from dateutil import rrule
-from StringIO import StringIO
 
 RRULE_WEEKDAY_DICT = {"MO":0,"TU":1,"WE":2,"TH":3,"FR":4,"SA":5,"SU":6}
 
@@ -337,16 +336,17 @@ class Log(models.Model):
     
     
     def email_subscribers(self):
-            subscribers = []
-            for user in self.job.subscribers.all():
-                subscribers.append('"%s" <%s>' % (user.get_full_name(), user.email))
-
-            send_mail(
-                from_email = '"%s" <%s>' % (settings.EMAIL_SENDER, settings.EMAIL_HOST_USER),
-                subject = '%s' % self,
-                recipient_list = subscribers,
-                message = "Ouput:\n%s\nError output:\n%s" % (self.stdout, self.stderr)
-            )
+        pass
+#            subscribers = []
+#            for user in self.job.subscribers.all():
+#                subscribers.append('"%s" <%s>' % (user.get_full_name(), user.email))
+#
+#            send_mail(
+#                from_email = '"%s" <%s>' % (settings.EMAIL_SENDER, settings.EMAIL_HOST_USER),
+#                subject = '%s' % self,
+#                recipient_list = subscribers,
+#                message = "Ouput:\n%s\nError output:\n%s" % (self.stdout, self.stderr)
+#            )
 
 
 class Host(models.Model):

@@ -1,15 +1,9 @@
-import sys
-
-from django.core.management.base import BaseCommand
 
 from kitsune.renderers import STATUS_OK, STATUS_WARNING, STATUS_CRITICAL, STATUS_UNKNOWN
+from kitsune.base import BaseKitsuneCheck
 
 
-class BaseKitsuneCheck():
-    pass
-
-
-class Command(BaseCommand, BaseKitsuneCheck):
+class Command(BaseKitsuneCheck):
     help = 'A simple test check.'
     
     
@@ -25,12 +19,3 @@ class Command(BaseCommand, BaseKitsuneCheck):
         else:
             self.status_message = 'UNKNOWN message'
             
-            
-    def handle(self, *args, **options):
-        self.check()
-        #standard output to print status message
-        print self.status_message
-        #standard error to print status code
-        #note comma at the end to avoid printing a \n
-        print >> sys.stderr, self.status_code,
-        

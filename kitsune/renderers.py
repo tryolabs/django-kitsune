@@ -6,23 +6,14 @@ Created on Mar 3, 2012
 
 from django.template.loader import render_to_string
 
+from kitsune.base import STATUS_OK, STATUS_WARNING, STATUS_CRITICAL, STATUS_UNKNOWN
 
-# Exit status codes recognized by Nagios
-STATUS_OK = 0
-STATUS_WARNING = 1
-STATUS_CRITICAL = 2
-STATUS_UNKNOWN = 3
 
 
 class KitsuneJobRenderer():
     
     def get_html_status(self, log):
-        if log.stderr == unicode(STATUS_OK):
-            return render_to_string('kitsune/success_status.html')
-        elif log.stderr == unicode(STATUS_WARNING):
-            return render_to_string('kitsune/alert_status.html')
-        else:
-            return render_to_string('kitsune/error_status.html')
+        return render_to_string('kitsune/status_code.html', dictionary={'status_code':int(log.stderr)})
         
     def get_html_message(self, log):
         result = log.stdout

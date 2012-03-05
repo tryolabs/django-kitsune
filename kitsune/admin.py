@@ -23,7 +23,7 @@ from django.core.management.base import BaseCommand
 
 from kitsune.models import Job, Log, Host
 from kitsune.renderers import STATUS_OK, STATUS_WARNING, STATUS_CRITICAL, STATUS_UNKNOWN
-from kitsune.management.commands.kitsune_base_check import BaseKitsuneCheck
+from kitsune.base import BaseKitsuneCheck
  
 
 def get_class(kls):
