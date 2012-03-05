@@ -8,12 +8,15 @@ from django.utils.translation import ungettext, ugettext, ugettext_lazy as _
 from django.utils.encoding import smart_str
 
 from kitsune.utils import get_manage_py
+from kitsune.renderers import KitsuneJobRenderer
+
 
 import os
 import re
 import subprocess
 import sys
 import traceback
+import inspect
 from socket import gethostname
 
 from datetime import datetime
@@ -22,14 +25,6 @@ from StringIO import StringIO
 
 RRULE_WEEKDAY_DICT = {"MO":0,"TU":1,"WE":2,"TH":3,"FR":4,"SA":5,"SU":6}
 
-HOST_NAME_CHOICES = (
-
-    ('subzero.tryolabs.com', 'subzero.tryolabs.com'),
-    ('liukang.tryolabs.com', 'liukang.tryolabs.com'),
-    ('jax.tryolabs.com', 'jax.tryolabs.com'),
-    ('jarek.tryolabs.com', 'jarek.tryolabs.com'),
-                     
-)
 
 class JobManager(models.Manager):
     def due(self):
@@ -46,6 +41,24 @@ freqs = (   ("YEARLY", _("Yearly")),
             ("HOURLY", _("Hourly")),
             ("MINUTELY", _("Minutely")),
             ("SECONDLY", _("Secondly")))
+
+
+def get_render_choices():
+    choices = []
+    try:
+        for kls in settings.KITSUNE_RENDERERS:
+            __import__(kls)
+            m = sys.modules[kls]
+            for name, obj in inspect.getmembers(m):
+                if inspect.isclass(obj) and issubclass(obj, KitsuneJobRenderer):
+                    class_name = kls + '.' + name
+                    if name != "KitsuneJobRenderer" and class_name not in choices:
+                        choices.append((class_name, class_name))
+    except:
+        pass
+    choices.append(("kitsune.models.KitsuneJobRenderer", "kitsune.models.KitsuneJobRenderer"))
+    return choices
+
 
 class Job(models.Model):
     """
@@ -68,6 +81,8 @@ class Job(models.Model):
     pid = models.IntegerField(blank=True, null=True, editable=False)
     force_run = models.BooleanField(default=False)
     host = models.ForeignKey('Host')
+    last_result = models.ForeignKey('Log', related_name='running_job', null=True, blank=True)
+    renderer = models.CharField(choices=get_render_choices(), max_length=100, default="kitsune.models.KitsuneJobRenderer")
     
     objects = JobManager()
     
@@ -242,8 +257,7 @@ class Job(models.Model):
             self.force_run = False
         else:
             self.next_run = self.rrule.after(run_date)
-        self.save()
-
+        
         # If we got any output, save it to the log
         stdout_str += stdout.getvalue()
         stderr_str += stderr.getvalue()
@@ -260,6 +274,9 @@ class Job(models.Model):
                 stdout = stdout_str,
                 stderr = stderr_str
             )
+            self.last_result = log
+        
+        self.save()
 
         # Redirect output back to default
         sys.stdout = ostdout
@@ -300,12 +317,13 @@ class Job(models.Model):
                 # TODO: add support for other OSes
                 return self.is_running
         return False
+    
 
 class Log(models.Model):
     """
     A record of stdout and stderr of a ``Job``.
     """
-    job = models.ForeignKey(Job)
+    job = models.ForeignKey('Job', related_name='logs')
     run_date = models.DateTimeField(auto_now_add=True)
     stdout = models.TextField(blank=True)
     stderr = models.TextField(blank=True)
@@ -316,6 +334,7 @@ class Log(models.Model):
     
     def __unicode__(self):
         return u"%s - %s" % (self.job.name, self.run_date)
+    
     
     def email_subscribers(self):
             subscribers = []
@@ -340,4 +359,10 @@ class Host(models.Model):
     
     def __unicode__(self):
         return self.name
+    
+    
+
+    
+    
+    
     

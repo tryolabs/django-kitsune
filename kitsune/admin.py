@@ -1,3 +1,9 @@
+import sys
+import inspect
+import pkgutil
+import os.path
+from datetime import datetime
+
 from django import forms
 from django.conf.urls.defaults import patterns, url
 from django.contrib import admin
@@ -13,10 +19,20 @@ from django.utils.html import escape
 from django.utils.safestring import mark_safe
 from django.utils.text import capfirst
 from django.utils.translation import ungettext, get_date_formats, ugettext_lazy as _
+from django.core.management.base import BaseCommand
 
 from kitsune.models import Job, Log, Host
+from kitsune.renderers import STATUS_OK, STATUS_WARNING, STATUS_CRITICAL, STATUS_UNKNOWN
+from kitsune.management.commands.kitsune_base_check import BaseKitsuneCheck
+ 
 
-from datetime import datetime
+def get_class(kls):
+    parts = kls.split('.')
+    module = ".".join(parts[:-1])
+    m = __import__( module )
+    for comp in parts[1:]:
+        m = getattr(m, comp)            
+    return m
 
 class HTMLWidget(forms.Widget):
     def __init__(self,rel=None, attrs=None):
@@ -36,14 +52,14 @@ class HTMLWidget(forms.Widget):
 class JobAdmin(admin.ModelAdmin):
     actions = ['run_selected_jobs']
     list_display = ('name', 'host', 'last_run_with_link', 'get_timeuntil',
-                    'get_frequency',  'is_running', 'run_button', 'view_logs_button')
+                    'get_frequency',  'is_running', 'run_button', 'view_logs_button', 'status_code', 'status_message')
     list_display_links = ('name', )
     list_filter = ('last_run_successful', 'frequency', 'disabled')
     filter_horizontal = ('subscribers',)
     fieldsets = (
         ('Job Details', {
             'classes': ('wide',),
-            'fields': ('name', 'host', 'command', 'args', 'disabled',)
+            'fields': ('name', 'host', 'command', 'args', 'disabled', 'renderer')
         }),
         ('E-mail subscriptions', {
             'classes': ('wide',),
@@ -91,13 +107,30 @@ class JobAdmin(admin.ModelAdmin):
     get_frequency.admin_order_field = 'frequency'
     get_frequency.short_description = 'Frequency'
     
-    
     def run_button(self, obj):
         on_click = "window.location='%d/run/?inline=1';" % obj.id
         return '<input type="button" onclick="%s" value="Run" />' % on_click
     run_button.allow_tags = True
     run_button.short_description = 'Run'
     
+    def status_code(self, obj):
+        if obj.last_result is not None:
+            Renderer = get_class(obj.renderer)
+            return Renderer().get_html_status(obj.last_result)
+        else:
+            return '--'
+    status_code.allow_tags = True
+    status_code.short_description = 'Status Code'
+    
+    def status_message(self, obj):
+        if obj.last_result is not None:
+            Renderer = get_class(obj.renderer)
+            return Renderer().get_html_message(obj.last_result)
+        else:
+            return '--'
+    status_message.allow_tags = True
+    status_message.short_description = 'Status Message'
+        
     def view_logs_button(self, obj):
         on_click = "window.location='../log/?job=%d';" % obj.id
         return '<input type="button" onclick="%s" value="View Logs" />' % on_click
@@ -145,7 +178,10 @@ class JobAdmin(admin.ModelAdmin):
         # Add a select field of available commands
         if db_field.name == 'command':
             choices_dict = MultiValueDict()
-            for command, app in get_commands().items():
+            #l = get_commands().items():
+            #l = [('kitsune_base_check', 'kitsune')]
+            l = get_kitsune_checks()
+            for command, app in l:
                 choices_dict.appendlist(app, command)
             
             choices = []
@@ -160,6 +196,40 @@ class JobAdmin(admin.ModelAdmin):
             return db_field.formfield(**kwargs)
         kwargs['request'] = request    
         return super(JobAdmin, self).formfield_for_dbfield(db_field, **kwargs)
+
+
+def get_kitsune_checks():
+    
+    # Find the installed apps
+    try:
+        from django.conf import settings
+        apps = settings.INSTALLED_APPS
+    except (AttributeError, EnvironmentError, ImportError):
+        apps = []
+
+    paths = []
+    choices = []
+    
+    for app in apps:
+        paths.append((app, app + '.management.commands'))
+
+    for app, package in paths:
+        try:
+            __import__(package)
+            m = sys.modules[package]
+            path = os.path.dirname(m.__file__)
+            for _, name, _ in pkgutil.iter_modules([path]):
+                pair = (name, app)
+                if not pair in choices:
+                    __import__(package + '.' + name)
+                    m2 = sys.modules[package + '.' + name]
+                    for _, obj in inspect.getmembers(m2):
+                        if inspect.isclass(obj) and issubclass(obj, BaseKitsuneCheck) and issubclass(obj, BaseCommand):
+                            choices.append(pair)
+        except:
+            pass
+    return choices
+
 
 class LogAdmin(admin.ModelAdmin):
     list_display = ('job_name', 'run_date', 'job_success', 'output', 'errors', )
@@ -184,16 +254,20 @@ class LogAdmin(admin.ModelAdmin):
     job_success.boolean = True
 
     def output(self, obj):
-        result = obj.stdout or ''
-        if len(result) > 40:
-            result = result[:40] + '...'
-        return result or '(No output)'
-
+        if obj.stdout is not None and obj.stdout != '':
+            Renderer = get_class(obj.job.renderer)
+            return Renderer().get_html_message(obj)
+        else:
+            return '--'
+    output.allow_tags = True
+    
     def errors(self, obj):
-        result = obj.stderr or ''
-        if len(result) > 40:
-            result = result[:40] + '...'
-        return result or '(No errors)'
+        if obj.stderr is not None:
+            Renderer = get_class(obj.job.renderer)
+            return Renderer().get_html_status(obj)
+        else:
+            return '--'
+    errors.allow_tags = True
     
     def has_add_permission(self, request):
         return False
