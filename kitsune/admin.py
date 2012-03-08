@@ -238,11 +238,11 @@ def get_kitsune_checks():
             path = os.path.dirname(m.__file__)
             for _, name, _ in pkgutil.iter_modules([path]):
                 pair = (name, app)
-                if not pair in choices:
-                    __import__(package + '.' + name)
-                    m2 = sys.modules[package + '.' + name]
-                    for _, obj in inspect.getmembers(m2):
-                        if inspect.isclass(obj) and issubclass(obj, BaseKitsuneCheck) and issubclass(obj, BaseCommand):
+                __import__(package + '.' + name)
+                m2 = sys.modules[package + '.' + name]
+                for _, obj in inspect.getmembers(m2):
+                    if inspect.isclass(obj) and issubclass(obj, BaseKitsuneCheck) and issubclass(obj, BaseCommand):
+                        if not pair in choices:
                             choices.append(pair)
         except:
             pass

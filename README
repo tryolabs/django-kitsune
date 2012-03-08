@@ -1,0 +1,6 @@
+
+
+To have access to nagios checks, nagios-plugins must be installed:
+
+sudo apt-get install nagios-plugins
+
