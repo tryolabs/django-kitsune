@@ -22,6 +22,7 @@ from socket import gethostname
 from datetime import datetime
 from dateutil import rrule
 from StringIO import StringIO
+from datetime import datetime, timedelta
 
 from django.contrib.auth.models import User
 from django.conf import settings
@@ -48,13 +49,24 @@ class JobManager(models.Manager):
         return self.filter(next_run__lte=datetime.now(), disabled=False, is_running=False)
 
 # A lot of rrule stuff is from django-schedule
-freqs = (   ("YEARLY", _("Yearly")),
+freqs = (   
+            ("YEARLY", _("Yearly")),
             ("MONTHLY", _("Monthly")),
             ("WEEKLY", _("Weekly")),
             ("DAILY", _("Daily")),
             ("HOURLY", _("Hourly")),
             ("MINUTELY", _("Minutely")),
-            ("SECONDLY", _("Secondly")))
+            ("SECONDLY", _("Secondly"))
+)
+
+
+log_freqs = (
+            ("Weeks", _("Weeks")),
+            ("Days", _("Days")),
+            ("Hours", _("Hours")),
+            ("Minutes", _("Minutes")),
+            ("Seconds", _("Seconds"))
+)
 
 
 def get_render_choices():
@@ -73,6 +85,20 @@ def get_render_choices():
     choices.append(("kitsune.models.KitsuneJobRenderer", "kitsune.models.KitsuneJobRenderer"))
     return choices
 
+
+def delete_old_logs(job):
+    if job.log_clean_freq_unit == 'Weeks':
+        delta = timedelta(weeks=job.log_clean_freq_value)
+    elif job.log_clean_freq_unit == 'Days':
+        delta = timedelta(days=job.log_clean_freq_value)
+    elif job.log_clean_freq_unit == 'Hours':
+        delta = timedelta(hours=job.log_clean_freq_value)
+    elif job.log_clean_freq_unit == 'Minutes':
+        delta = timedelta(minutes=job.log_clean_freq_value)
+    elif job.log_clean_freq_unit == 'Seconds':
+        delta = timedelta(seconds=job.log_clean_freq_value)
+    Log.objects.filter(job=job, run_date__lte=datetime.now() - delta).delete()
+    
 
 class Job(models.Model):
     """
@@ -97,6 +123,9 @@ class Job(models.Model):
     host = models.ForeignKey('Host')
     last_result = models.ForeignKey('Log', related_name='running_job', null=True, blank=True)
     renderer = models.CharField(choices=get_render_choices(), max_length=100, default="kitsune.models.KitsuneJobRenderer")
+    
+    log_clean_freq_unit = models.CharField(choices=log_freqs, max_length=10, default="Hours")
+    log_clean_freq_value = models.PositiveIntegerField(default=1)
     
     objects = JobManager()
     
@@ -291,6 +320,8 @@ class Job(models.Model):
             self.last_result = log
         
         self.save()
+        
+        delete_old_logs(self)
 
         # Redirect output back to default
         sys.stdout = ostdout
