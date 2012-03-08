@@ -85,7 +85,7 @@ class JobAdmin(admin.ModelAdmin):
         }),
         ('Log options', {
             'classes': ('wide',),
-            'fields': ('log_clean_freq_unit', 'log_clean_freq_value',)
+            'fields': ('last_logs_to_keep',)
         }),
     )
     search_fields = ('name', )
