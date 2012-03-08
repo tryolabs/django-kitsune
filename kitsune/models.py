@@ -84,20 +84,6 @@ def get_render_choices():
         pass
     choices.append(("kitsune.models.KitsuneJobRenderer", "kitsune.models.KitsuneJobRenderer"))
     return choices
-
-
-def delete_old_logs(job):
-    if job.log_clean_freq_unit == 'Weeks':
-        delta = timedelta(weeks=job.log_clean_freq_value)
-    elif job.log_clean_freq_unit == 'Days':
-        delta = timedelta(days=job.log_clean_freq_value)
-    elif job.log_clean_freq_unit == 'Hours':
-        delta = timedelta(hours=job.log_clean_freq_value)
-    elif job.log_clean_freq_unit == 'Minutes':
-        delta = timedelta(minutes=job.log_clean_freq_value)
-    elif job.log_clean_freq_unit == 'Seconds':
-        delta = timedelta(seconds=job.log_clean_freq_value)
-    Log.objects.filter(job=job, run_date__lte=datetime.now() - delta).delete()
     
 
 class Job(models.Model):
@@ -124,8 +110,7 @@ class Job(models.Model):
     last_result = models.ForeignKey('Log', related_name='running_job', null=True, blank=True)
     renderer = models.CharField(choices=get_render_choices(), max_length=100, default="kitsune.models.KitsuneJobRenderer")
     
-    log_clean_freq_unit = models.CharField(choices=log_freqs, max_length=10, default="Hours")
-    log_clean_freq_value = models.PositiveIntegerField(default=1)
+    last_logs_to_keep = models.PositiveIntegerField(default=20)
     
     objects = JobManager()
     
@@ -321,11 +306,15 @@ class Job(models.Model):
         
         self.save()
         
-        delete_old_logs(self)
+        self.delete_old_logs()
 
         # Redirect output back to default
         sys.stdout = ostdout
         sys.stderr = ostderr
+        
+    def delete_old_logs(self):
+        log = Log.objects.filter(job=self).order_by('-run_date')[self.last_logs_to_keep]
+        Log.objects.filter(job=self, run_date__lte=log.run_date).delete()
     
     def check_is_running(self):
         """
