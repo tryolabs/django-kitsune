@@ -35,7 +35,7 @@ from django.utils.text import capfirst
 from django.utils.translation import ungettext, get_date_formats, ugettext_lazy as _
 from django.core.management.base import BaseCommand
 
-from kitsune.models import Job, Log, Host
+from kitsune.models import Job, Log, Host, NotificationRule
 from kitsune.renderers import STATUS_OK, STATUS_WARNING, STATUS_CRITICAL, STATUS_UNKNOWN
 from kitsune.base import BaseKitsuneCheck
  
@@ -63,23 +63,28 @@ class HTMLWidget(forms.Widget):
         final_attrs = self.build_attrs(attrs, name=name)
         return mark_safe("<div%s>%s</div>" % (flatatt(final_attrs), linebreaks(value)))
 
+class NotificationRuleInline(admin.TabularInline):
+    model = NotificationRule
+    extra = 1
+    
 class JobAdmin(admin.ModelAdmin):
+    inlines = (NotificationRuleInline,)
     actions = ['run_selected_jobs']
     list_display = ('name', 'host', 'last_run_with_link', 'get_timeuntil',
                     'get_frequency',  'is_running', 'run_button', 'view_logs_button', 'status_code', 'status_message')
     list_display_links = ('name', )
     list_filter = ('last_run_successful', 'frequency', 'disabled')
-    filter_horizontal = ('subscribers',)
+    #filter_horizontal = ('subscribers',)
     fieldsets = (
         ('Job Details', {
             'classes': ('wide',),
             'fields': ('name', 'host', 'command', 'args', 'disabled', 'renderer')
         }),
-        ('E-mail subscriptions', {
-            'classes': ('wide',),
-            'fields': ('subscribers',)
-        }),
-        ('Frequency options', {
+#        ('E-mail subscriptions', {
+#            'classes': ('wide',),
+#            'fields': ('subscribers',)
+#        }),
+        ('Scheduling options', {
             'classes': ('wide',),
             'fields': ('frequency', 'next_run', 'params',)
         }),
@@ -87,6 +92,11 @@ class JobAdmin(admin.ModelAdmin):
             'classes': ('wide',),
             'fields': ('last_logs_to_keep',)
         }),
+                 
+#        ('Notifications', {
+#            'classes': ('wide',),
+#            'fields': ('subscribers',)
+#        }),
     )
     search_fields = ('name', )
     
@@ -310,3 +320,9 @@ except admin.sites.AlreadyRegistered:
 
 admin.site.register(Log, LogAdmin)
 admin.site.register(Host)
+
+
+
+    
+    
+    

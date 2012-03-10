@@ -33,12 +33,37 @@ from django.utils.timesince import timeuntil
 from django.utils.translation import ungettext, ugettext, ugettext_lazy as _
 from django.utils.encoding import smart_str
 from django.core import urlresolvers
+from django.template.loader import render_to_string
 
 from kitsune.utils import get_manage_py
 from kitsune.renderers import KitsuneJobRenderer
+from kitsune.base import STATUS_OK, STATUS_WARNING, STATUS_CRITICAL, STATUS_UNKNOWN
+from kitsune.mail import send_mail, send_multi_mail
+from kitsune.html2text import html2text
 
 
 RRULE_WEEKDAY_DICT = {"MO":0,"TU":1,"WE":2,"TH":3,"FR":4,"SA":5,"SU":6}
+
+THRESHOLD_CHOICES = (
+
+    (STATUS_OK, 'Status OK'),
+    (STATUS_WARNING, 'Status Warning'),
+    (STATUS_CRITICAL, 'Status Critical'),
+    (STATUS_UNKNOWN, 'Status Unknown'),
+                     
+)
+
+RULE_LAST = 'lt'
+RULE_LAST_N = 'n_lt'
+RULE_LAST_N_M = 'n_m_lt'
+
+REPETITION_CHOICES = (
+
+    (RULE_LAST, 'Last Time'),
+    (RULE_LAST_N, 'N last times'),
+    (RULE_LAST_N_M, 'N of M last times'),
+                     
+)
 
 
 class JobManager(models.Manager):
@@ -103,14 +128,14 @@ class Job(models.Model):
     last_run = models.DateTimeField(_("last run"), editable=False, blank=True, null=True)
     is_running = models.BooleanField(default=False, editable=False)
     last_run_successful = models.BooleanField(default=True, blank=False, null=False, editable=False)
-    subscribers = models.ManyToManyField(User, blank=True, related_name='kitsune_jobs', limit_choices_to={'is_staff':True})
+    
     pid = models.IntegerField(blank=True, null=True, editable=False)
     force_run = models.BooleanField(default=False)
     host = models.ForeignKey('Host')
     last_result = models.ForeignKey('Log', related_name='running_job', null=True, blank=True)
     renderer = models.CharField(choices=get_render_choices(), max_length=100, default="kitsune.models.KitsuneJobRenderer")
-    
     last_logs_to_keep = models.PositiveIntegerField(default=20)
+    
     
     objects = JobManager()
     
@@ -307,10 +332,47 @@ class Job(models.Model):
         self.save()
         
         self.delete_old_logs()
+        
+        self.email_subscribers()
 
         # Redirect output back to default
         sys.stdout = ostdout
         sys.stderr = ostderr
+        
+        
+    def email_subscribers(self):
+        from_email = settings.DEFAULT_FROM_EMAIL
+        subject = 'Kitsune monitoring notification'
+        
+        for sub in self.subscribers.filter(job=self):
+            if sub.rule_type == RULE_LAST:
+                if self.last_result.get_status_code() >= sub.threshold:
+                    html_message = render_to_string('kitsune/mail_notification.html', {'log':self.last_result})
+                    text_message = html2text(html_message)
+                    send_multi_mail(subject,text_message,html_message,from_email,[sub.user.email],fail_silently=False)
+                    
+            elif sub.rule_type == RULE_LAST_N:
+                n = 0
+                for log in self.logs.order_by('-run_date')[sub.rule_N:]:
+                    if log.get_status_code() < sub.threshold:
+                        break
+                    else:
+                        n += 1
+                if n == sub.rule_N:
+                    html_message = render_to_string('kitsune/mail_notification.html', {'log':self.last_result})
+                    text_message = html2text(html_message)
+                    send_multi_mail(subject,text_message,html_message,from_email,[sub.user.email],fail_silently=False)
+                    
+            elif sub.rule_type == RULE_LAST_N_M:
+                n = 0
+                for log in self.logs.order_by('-run_date')[sub.rule_M:]:
+                    if log.get_status_code() >= sub.threshold:
+                        n += 1
+                if n >= sub.rule_N:
+                    html_message = render_to_string('kitsune/mail_notification.html', {'log':self.last_result})
+                    text_message = html2text(html_message)
+                    send_multi_mail(subject,text_message,html_message,from_email,[sub.user.email],fail_silently=False)
+        
         
     def delete_old_logs(self):
         log = Log.objects.filter(job=self).order_by('-run_date')[self.last_logs_to_keep]
@@ -353,6 +415,26 @@ class Job(models.Model):
         return False
     
 
+
+
+
+class NotificationRule(models.Model):
+    
+    job = models.ForeignKey('Job', related_name='subscribers')
+    user = models.ForeignKey(User)
+    
+    last_notification = models.DateTimeField(blank=True, null=True, editable=False)
+    threshold = models.IntegerField(choices=THRESHOLD_CHOICES, max_length=10)
+    rule_type = models.CharField(choices=REPETITION_CHOICES, max_length=10)
+    rule_N = models.PositiveIntegerField(default=1)
+    rule_M = models.PositiveIntegerField(default=2)
+    frequency_unit = models.CharField(choices=freqs, max_length=10)
+    frequency_value = models.PositiveIntegerField()
+    
+    def __unicode__(self):
+        return str(self.threshold) + ' ' + self.rule_type
+
+
 class Log(models.Model):
     """
     A record of stdout and stderr of a ``Job``.
@@ -368,23 +450,12 @@ class Log(models.Model):
     
     def __unicode__(self):
         return u"%s - %s" % (self.job.name, self.run_date)
-    
-    
-    def email_subscribers(self):
-        pass
-#            subscribers = []
-#            for user in self.job.subscribers.all():
-#                subscribers.append('"%s" <%s>' % (user.get_full_name(), user.email))
-#
-#            send_mail(
-#                from_email = '"%s" <%s>' % (settings.EMAIL_SENDER, settings.EMAIL_HOST_USER),
-#                subject = '%s' % self,
-#                recipient_list = subscribers,
-#                message = "Ouput:\n%s\nError output:\n%s" % (self.stdout, self.stderr)
-#            )
 
     def admin_link(self):
         return urlresolvers.reverse('admin:kitsune_' + self.__class__.__name__.lower() + '_change', args=(self.id,))
+    
+    def get_status_code(self):
+        return int(self.stderr)
 
 class Host(models.Model):
     """

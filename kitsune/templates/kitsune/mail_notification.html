@@ -1,0 +1,22 @@
+{% extends "kitsune/mail_base.html" %}
+
+{% block title %}
+Kitsune Monitoring Notification
+{% endblock title %}
+
+{% block content %}
+
+You have received a monitoring notification:<br><br>
+
+Check:<br>
+{{log.job.name}}<br>
+Host:<br>
+{{log.job.host.name}}<br>
+Date:<br>
+{{log.run_date}}<br>
+Status Code:<br>
+{{log.stdout}}<br>
+Status Message:<br>
+{{log.stderr}}<br>
+        
+{% endblock content %}
