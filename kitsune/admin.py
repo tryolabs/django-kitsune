@@ -319,7 +319,9 @@ except admin.sites.AlreadyRegistered:
     pass
 
 admin.site.register(Log, LogAdmin)
+#admin.site.register(Log)
 admin.site.register(Host)
+
 
 
 

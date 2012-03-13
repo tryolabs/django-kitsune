@@ -61,7 +61,7 @@ REPETITION_CHOICES = (
 
     (RULE_LAST, 'Last Time'),
     (RULE_LAST_N, 'N last times'),
-    (RULE_LAST_N_M, 'N of M last times'),
+    (RULE_LAST_N_M, 'M of N last times'),
                      
 )
 
@@ -85,12 +85,9 @@ freqs = (
 )
 
 
-log_freqs = (
-            ("Weeks", _("Weeks")),
-            ("Days", _("Days")),
+NOTIF_INTERVAL_CHOICES = (
             ("Hours", _("Hours")),
             ("Minutes", _("Minutes")),
-            ("Seconds", _("Seconds"))
 )
 
 
@@ -345,34 +342,12 @@ class Job(models.Model):
         subject = 'Kitsune monitoring notification'
         
         for sub in self.subscribers.filter(job=self):
-            if sub.rule_type == RULE_LAST:
-                if self.last_result.get_status_code() >= sub.threshold:
-                    html_message = render_to_string('kitsune/mail_notification.html', {'log':self.last_result})
-                    text_message = html2text(html_message)
-                    send_multi_mail(subject,text_message,html_message,from_email,[sub.user.email],fail_silently=False)
-                    
-            elif sub.rule_type == RULE_LAST_N:
-                n = 0
-                for log in self.logs.order_by('-run_date')[sub.rule_N:]:
-                    if log.get_status_code() < sub.threshold:
-                        break
-                    else:
-                        n += 1
-                if n == sub.rule_N:
-                    html_message = render_to_string('kitsune/mail_notification.html', {'log':self.last_result})
-                    text_message = html2text(html_message)
-                    send_multi_mail(subject,text_message,html_message,from_email,[sub.user.email],fail_silently=False)
-                    
-            elif sub.rule_type == RULE_LAST_N_M:
-                n = 0
-                for log in self.logs.order_by('-run_date')[sub.rule_M:]:
-                    if log.get_status_code() >= sub.threshold:
-                        n += 1
-                if n >= sub.rule_N:
-                    html_message = render_to_string('kitsune/mail_notification.html', {'log':self.last_result})
-                    text_message = html2text(html_message)
-                    send_multi_mail(subject,text_message,html_message,from_email,[sub.user.email],fail_silently=False)
-        
+            if sub.must_notify():
+                sub.last_notification = datetime.now()
+                sub.save()
+                html_message = render_to_string('kitsune/mail_notification.html', {'log':self.last_result})
+                text_message = html2text(html_message)
+                send_multi_mail(subject,text_message,html_message,from_email,[sub.user.email],fail_silently=False)
         
     def delete_old_logs(self):
         log = Log.objects.filter(job=self).order_by('-run_date')[self.last_logs_to_keep]
@@ -428,12 +403,50 @@ class NotificationRule(models.Model):
     rule_type = models.CharField(choices=REPETITION_CHOICES, max_length=10)
     rule_N = models.PositiveIntegerField(default=1)
     rule_M = models.PositiveIntegerField(default=2)
-    frequency_unit = models.CharField(choices=freqs, max_length=10)
-    frequency_value = models.PositiveIntegerField()
+    interval_unit = models.CharField(choices=NOTIF_INTERVAL_CHOICES, max_length=10)
+    interval_value = models.PositiveIntegerField(default=1)
+    enabled = models.BooleanField(default=True)
     
     def __unicode__(self):
-        return str(self.threshold) + ' ' + self.rule_type
-
+        return u'Notification to:'
+    
+    def must_notify(self):
+        if self.enabled:
+            
+            if self.last_notification is not None:
+                if self.interval_unit == 'Minutes':
+                    dt = timedelta(minutes=self.interval_value)
+                elif self.interval_unit == 'Hours':
+                    dt = timedelta(hours=self.interval_value)
+                else:
+                    dt = timedelta(hours=1)
+                
+                threshold = self.last_notification + dt  
+                tt = datetime.now()   
+                if threshold > tt:
+                    return False
+            
+            if self.rule_type == RULE_LAST:
+                return self.job.last_result.get_status_code() >= self.threshold
+                    
+            elif self.rule_type == RULE_LAST_N:
+                n = 0
+                logs = self.job.logs.order_by('-run_date')[:self.rule_N]
+                for log in logs:
+                    if log.get_status_code() < self.threshold:
+                        break
+                    else:
+                        n += 1
+                return n == self.rule_N
+                    
+            elif self.rule_type == RULE_LAST_N_M:
+                n = 0
+                logs = self.job.logs.order_by('-run_date')[:self.rule_N]
+                for log in logs:
+                    if log.get_status_code() >= self.threshold:
+                        n += 1
+                return n >= self.rule_M
+        return False
 
 class Log(models.Model):
     """
@@ -443,7 +456,7 @@ class Log(models.Model):
     run_date = models.DateTimeField(auto_now_add=True)
     stdout = models.TextField(blank=True)
     stderr = models.TextField(blank=True)
-    success = models.BooleanField(default=True, editable=False)
+    success = models.BooleanField(default=True)#, editable=False)
         
     class Meta:
         ordering = ('-run_date',)
