@@ -34,8 +34,9 @@ from django.utils.safestring import mark_safe
 from django.utils.text import capfirst
 from django.utils.translation import ungettext, get_date_formats, ugettext_lazy as _
 from django.core.management.base import BaseCommand
+from django.contrib.auth.models import User, Group
 
-from kitsune.models import Job, Log, Host, NotificationRule
+from kitsune.models import Job, Log, Host, NotificationUser, NotificationGroup
 from kitsune.renderers import STATUS_OK, STATUS_WARNING, STATUS_CRITICAL, STATUS_UNKNOWN
 from kitsune.base import BaseKitsuneCheck
  
@@ -63,27 +64,67 @@ class HTMLWidget(forms.Widget):
         final_attrs = self.build_attrs(attrs, name=name)
         return mark_safe("<div%s>%s</div>" % (flatatt(final_attrs), linebreaks(value)))
 
-class NotificationRuleInline(admin.TabularInline):
-    model = NotificationRule
+class NotificationUserInline(admin.TabularInline):
+    model = NotificationUser
     extra = 1
     
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "user":
+            kwargs["queryset"] = User.objects.filter(is_staff=True)
+        return super(NotificationUserInline, self).formfield_for_foreignkey(db_field, request, **kwargs)
+    
+class NotificationGroupInline(admin.TabularInline):
+    model = NotificationGroup
+    extra = 1
+    
+#from django.contrib.admin import SimpleListFilter
+#
+#class StatusCodeListFilter(SimpleListFilter):
+#    # Human-readable title which will be displayed in the
+#    # right admin sidebar just above the filter options.
+#    title = _('status_code')
+#
+#    # Parameter for the filter that will be used in the URL query.
+#    parameter_name = 'status_code'
+#
+#    def lookups(self, request, model_admin):
+#        """
+#        Returns a list of tuples. The first element in each
+#        tuple is the coded value for the option that will
+#        appear in the URL query. The second element is the
+#        human-readable name for the option that will appear
+#        in the right sidebar.
+#        """
+#        return (
+#            ('0', _('OK')),
+#            ('1', _('WARNING')),
+#            ('2', _('ERROR')),
+#            ('3', _('UNKNOWN')),
+#        )
+#
+#    def queryset(self, request, queryset):
+#        """
+#        Returns the filtered queryset based on the value
+#        provided in the query string and retrievable via
+#        `self.value()`.
+#        """
+#        # Compare the requested value (either '80s' or 'other')
+#        # to decide how to filter the queryset.
+#        return queryset.filter(last_result__stderr=self.value())
+
+    
 class JobAdmin(admin.ModelAdmin):
-    inlines = (NotificationRuleInline,)
+    inlines = (NotificationUserInline, NotificationGroupInline)
     actions = ['run_selected_jobs']
     list_display = ('name', 'host', 'last_run_with_link', 'get_timeuntil',
                     'get_frequency',  'is_running', 'run_button', 'view_logs_button', 'status_code', 'status_message')
     list_display_links = ('name', )
-    list_filter = ('last_run_successful', 'frequency', 'disabled')
-    #filter_horizontal = ('subscribers',)
+    list_filter = ('host',)
     fieldsets = (
         ('Job Details', {
             'classes': ('wide',),
             'fields': ('name', 'host', 'command', 'args', 'disabled', 'renderer')
         }),
-#        ('E-mail subscriptions', {
-#            'classes': ('wide',),
-#            'fields': ('subscribers',)
-#        }),
         ('Scheduling options', {
             'classes': ('wide',),
             'fields': ('frequency', 'next_run', 'params',)
@@ -91,12 +132,7 @@ class JobAdmin(admin.ModelAdmin):
         ('Log options', {
             'classes': ('wide',),
             'fields': ('last_logs_to_keep',)
-        }),
-                 
-#        ('Notifications', {
-#            'classes': ('wide',),
-#            'fields': ('subscribers',)
-#        }),
+        }),     
     )
     search_fields = ('name', )
     

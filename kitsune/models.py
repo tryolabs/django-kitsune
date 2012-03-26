@@ -24,7 +24,7 @@ from dateutil import rrule
 from StringIO import StringIO
 from datetime import datetime, timedelta
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
 from django.conf import settings
 from django.core.management import call_command
 from django.db import models
@@ -341,13 +341,29 @@ class Job(models.Model):
         from_email = settings.DEFAULT_FROM_EMAIL
         subject = 'Kitsune monitoring notification'
         
-        for sub in self.subscribers.filter(job=self):
+        user_ids = set([])
+        for sub in self.subscriber_users.all():
+            #notify subscribed users
             if sub.must_notify():
                 sub.last_notification = datetime.now()
                 sub.save()
                 html_message = render_to_string('kitsune/mail_notification.html', {'log':self.last_result})
                 text_message = html2text(html_message)
+                user_ids.add(sub.user.id)
                 send_multi_mail(subject,text_message,html_message,from_email,[sub.user.email],fail_silently=False)
+        
+        for sub in self.subscriber_groups.all():
+            if sub.must_notify():
+                #notify subscribed groups
+                sub.last_notification = datetime.now()
+                sub.save()
+                for user in sub.group.user_set.all():
+                    if not (user.id in user_ids):
+                        #notify users that have not already being notified
+                        html_message = render_to_string('kitsune/mail_notification.html', {'log':self.last_result})
+                        text_message = html2text(html_message)
+                        send_multi_mail(subject,text_message,html_message,from_email,[user.email],fail_silently=False)
+        
         
     def delete_old_logs(self):
         log = Log.objects.filter(job=self).order_by('-run_date')[self.last_logs_to_keep]
@@ -390,14 +406,7 @@ class Job(models.Model):
         return False
     
 
-
-
-
 class NotificationRule(models.Model):
-    
-    job = models.ForeignKey('Job', related_name='subscribers')
-    user = models.ForeignKey(User)
-    
     last_notification = models.DateTimeField(blank=True, null=True, editable=False)
     threshold = models.IntegerField(choices=THRESHOLD_CHOICES, max_length=10)
     rule_type = models.CharField(choices=REPETITION_CHOICES, max_length=10)
@@ -447,6 +456,20 @@ class NotificationRule(models.Model):
                         n += 1
                 return n >= self.rule_M
         return False
+    
+    class Meta:
+        abstract = True
+    
+    
+class NotificationUser(NotificationRule):
+    job = models.ForeignKey('Job', related_name='subscriber_users')
+    user = models.ForeignKey(User)
+    
+    
+class NotificationGroup(NotificationRule):
+    job = models.ForeignKey('Job', related_name='subscriber_groups')
+    group = models.ForeignKey(Group)
+       
 
 class Log(models.Model):
     """
@@ -469,6 +492,7 @@ class Log(models.Model):
     
     def get_status_code(self):
         return int(self.stderr)
+
 
 class Host(models.Model):
     """
