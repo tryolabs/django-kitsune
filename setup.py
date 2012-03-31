@@ -12,8 +12,8 @@ setup(name='django-kitsune',
       author='Raul Garreta - Tryolabs',
       author_email='raul@tryolabs.com',
       url='https://github.com/tryolabs/django-kitsune',
-      #packages=['django-kitsune'],
       packages=find_packages(),
-      #package_dir={'django-kitsune': 'kitsune'},
+      include_package_data=True,
+      zip_safe=False
      )
 

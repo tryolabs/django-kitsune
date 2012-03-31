@@ -19,7 +19,7 @@ class Command(BaseKitsuneCheck):
     help = 'A simple test check.'
     
     
-    def check(self):
+    def check(self, *args, **options):
         self.status_code = STATUS_OK
         
         if self.status_code == STATUS_OK:
