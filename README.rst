@@ -119,7 +119,7 @@ For example, to add a check_disk, do the following steps::
 
 * Name: check_disk
 * Host: select a job from the combobox
-* Command: select nagios wrapper: kitsune_nagios_check
+* Command: select nagios wrapper: ``kitsune_nagios_check``
 * Args: you must provide a special parameter `check` with the name of the nagios check eg: check=check_disk.
 
 Then provide the necessary nagios check arguments, in this case: -u=GB -w=5 -c=2 -p=/
@@ -150,6 +150,7 @@ With notification rules you must set the:
 ``Rule N`` and ``Rule M`` parameters.
 
 Notification frequency:
+
 * ``Interval unit``, ``Interval value`` sets the maximum frequency to receive email notifications. These are useful to avoid filling admin inbox with notification mails.
 * ``User/Group`` specifies the users or group of users to be notified. These must be staff users and shall be created within admin.
 
@@ -157,9 +158,9 @@ Notification frequency:
 Add a custom check
 ------------------
 
-In order to implement a custom check, you must implement a class that is subclass of kitsune.base.BaseKitsuneCheck.
+In order to implement a custom check, you must implement a class that is subclass of ``kitsune.base.BaseKitsuneCheck``.
 
-Within this class, you must implement the method check(self, *args, **options). For example::
+Within this class, you must implement the method ``check(self, *args, **options)``. For example::
 
 	from kitsune.renderers import STATUS_OK, STATUS_WARNING, STATUS_CRITICAL, STATUS_UNKNOWN
 	from kitsune.base import BaseKitsuneCheck
@@ -188,7 +189,7 @@ Add a custom renderer
 
 Renderers are in charge to render the results within the admin panel. They will take the status code and status message and return a html.
 
-If you want to implement your own renderer, you must implement a class that is sublcass of kitsune.renderers.KitsuneJobRenderer.
+If you want to implement your own renderer, you must implement a class that is sublcass of ``kitsune.renderers.KitsuneJobRenderer``.
 
 You must implement to methods: ``get_html_status(self, log)`` that receives a log and and returns a html for status code.
 
@@ -208,7 +209,7 @@ For example::
 	    def get_html_message(self, log):
 	        return 'All OK!'
         
-Then you must specify where to get this renderer with the KITSUNE_RENDERERS at your project settings (see bellow).
+Then you must specify where to get this renderer with the ``KITSUNE_RENDERERS`` at your project settings (see bellow).
 
 ***************
 Acknowledgments
