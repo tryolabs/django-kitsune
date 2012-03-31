@@ -4,4 +4,7 @@ local_settings.py
 *.prefs
 .pydevproject
 .project
+dist
+*.egg-info
+build
 
