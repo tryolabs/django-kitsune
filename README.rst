@@ -80,7 +80,7 @@ Requirements
 ************
 
 * Python 2.6 and higher.
-* Nagios plugins: `sudo apt-get install nagios-plugins` (if you want to use Nagios checks).
+* Nagios plugins: ``sudo apt-get install nagios-plugins`` (if you want to use Nagios checks).
 
 ************
 Installation
@@ -88,8 +88,8 @@ Installation
 
 To install Kitsune:
 
-1. ``easy_install django-kitsune`` or download package and execute `python setup.py install`
-2. Add ``'kitsune'`` to the `INSTALLED_APPS` in your project's ``settings.py``
+1. ``easy_install django-kitsune`` or download package and execute ``python setup.py install``
+2. Add ``'kitsune'`` to the ``INSTALLED_APPS`` in your project's ``settings.py``
 
 *************
 Configuration
@@ -97,9 +97,9 @@ Configuration
 
 Kitsune can be configured via the following parameters, to be defined in your project settings file:
 
-* ``KITSUNE_RENDERERS``: List of modules that contain renderer classes, eg:: `KITSUNE_RENDERERS = ['myproject.myapp.renderers']`.
+* ``KITSUNE_RENDERERS``: List of modules that contain renderer classes, eg:: ``KITSUNE_RENDERERS = ['myproject.myapp.renderers']``.
 
-Kitsune comes with a default renderer `kitsune.renderers.KitsuneJobRenderer`.
+Kitsune comes with a default renderer ``kitsune.renderers.KitsuneJobRenderer``.
 
 
 *****
@@ -124,34 +124,34 @@ For example, to add a check_disk, do the following steps::
 
 Then provide the necessary nagios check arguments, in this case: -u=GB -w=5 -c=2 -p=/
 
-To sum up, the string of arguments will be: `check=check_disk -u=GB -w=5 -c=2 -p=/`
+To sum up, the string of arguments will be: ``check=check_disk -u=GB -w=5 -c=2 -p=/``
 
 3. Select the result Renderer, eg: KitsuneJobRenderer
-4. Configure scheduling options, eg: Frequency: Hourly, Params: `interval:1`.
+4. Configure scheduling options, eg: Frequency: Hourly, Params: ``interval:1``.
 
 This will schedule the check to be run every 1 hour.
 
 5. Configure log options, last logs to keep specifies the last N logs to keep.
 6. Configure Notification rules.
 
-Every check returns a status code of 0=OK, 1=WARNING, 2=CRITICAL ERROR, 3=UNKNOWN ERROR with its corresponding status message.
+Every check returns a status code of ``0=OK, 1=WARNING, 2=CRITICAL ERROR, 3=UNKNOWN ERROR`` with its corresponding status message.
 
 With notification rules you must set the:
 
-* Threshold (the status code to be reached)
-* Rule type, 
+* ``Threshold`` (the status code to be reached)
+* ``Rule type``, 
 
-Last time: triggered when last result reached the threshold.
+``Last time``: triggered when last result reached the threshold.
 
-N last times: triggered when last N results reached the threshold.
+``N last times``: triggered when last N results reached the threshold.
 
-M of N last times: triggered when M of the last N results reached the threshold.
+``M of N last times``: triggered when M of the last N results reached the threshold.
 
-Rule N and Rule M parameters.
+``Rule N`` and ``Rule M`` parameters.
 
 Notification frequency:
-* Interval unit, Interval value sets the maximum frequency to receive email notifications. These are useful to avoid filling admin inbox with notification mails.
-* User/Group specifies the users or group of users to be notified. These must be staff users and shall be created within admin.
+* ``Interval unit``, ``Interval value`` sets the maximum frequency to receive email notifications. These are useful to avoid filling admin inbox with notification mails.
+* ``User/Group`` specifies the users or group of users to be notified. These must be staff users and shall be created within admin.
 
 
 Add a custom check
@@ -161,25 +161,25 @@ In order to implement a custom check, you must implement a class that is subclas
 
 Within this class, you must implement the method check(self, *args, **options). For example::
 
-from kitsune.renderers import STATUS_OK, STATUS_WARNING, STATUS_CRITICAL, STATUS_UNKNOWN
-from kitsune.base import BaseKitsuneCheck
+	from kitsune.renderers import STATUS_OK, STATUS_WARNING, STATUS_CRITICAL, STATUS_UNKNOWN
+	from kitsune.base import BaseKitsuneCheck
+	
+	class Command(BaseKitsuneCheck):
+	    help = 'A simple test check.'
+	    
+	    def check(self, *args, **options):
+	        self.status_code = STATUS_OK
+	        
+	        if self.status_code == STATUS_OK:
+	            self.status_message = 'OK message'
+	        elif self.status_code == STATUS_WARNING:
+	            self.status_message = 'WARNING message'
+	        elif self.status_code == STATUS_CRITICAL:
+	            self.status_message = 'CRITICAL message'
+	        else:
+	            self.status_message = 'UNKNOWN message'
 
-class Command(BaseKitsuneCheck):
-    help = 'A simple test check.'
-    
-    def check(self, *args, **options):
-        self.status_code = STATUS_OK
-        
-        if self.status_code == STATUS_OK:
-            self.status_message = 'OK message'
-        elif self.status_code == STATUS_WARNING:
-            self.status_message = 'WARNING message'
-        elif self.status_code == STATUS_CRITICAL:
-            self.status_message = 'CRITICAL message'
-        else:
-            self.status_message = 'UNKNOWN message'
-
-With *args and **options you will receive the arguments and options set from the Args string.
+With ``*args and **options`` you will receive the arguments and options set from the Args string.
 
 Modules that implement checks are Django management commands, and must live within management.commands package of an app within your project.
 
@@ -190,23 +190,23 @@ Renderers are in charge to render the results within the admin panel. They will 
 
 If you want to implement your own renderer, you must implement a class that is sublcass of kitsune.renderers.KitsuneJobRenderer.
 
-You must implement to methods: get_html_status(self, log) that receives a log and and returns a html for status code.
+You must implement to methods: ``get_html_status(self, log)`` that receives a log and and returns a html for status code.
 
-get_html_message(self, log) that recevies a log and returns a html for status message.
+``get_html_message(self, log)`` that recevies a log and returns a html for status message.
 
 For example::
 
-from django.template.loader import render_to_string
-from kitsune.renderers import KitsuneJobRenderer
-from kitsune.base import STATUS_OK, STATUS_WARNING, STATUS_CRITICAL, STATUS_UNKNOWN
-
-class MyJobRenderer(KitsuneJobRenderer):
-    
-    def get_html_status(self, log):
-        return render_to_string('kitsune/status_code.html', dictionary={'status_code':int(log.stderr)})
-        
-    def get_html_message(self, log):
-        return 'All OK!'
+	from django.template.loader import render_to_string
+	from kitsune.renderers import KitsuneJobRenderer
+	from kitsune.base import STATUS_OK, STATUS_WARNING, STATUS_CRITICAL, STATUS_UNKNOWN
+	
+	class MyJobRenderer(KitsuneJobRenderer):
+	    
+	    def get_html_status(self, log):
+	        return render_to_string('kitsune/status_code.html', dictionary={'status_code':int(log.stderr)})
+	        
+	    def get_html_message(self, log):
+	        return 'All OK!'
         
 Then you must specify where to get this renderer with the KITSUNE_RENDERERS at your project settings (see bellow).
 
@@ -214,6 +214,6 @@ Then you must specify where to get this renderer with the KITSUNE_RENDERERS at y
 Acknowledgments
 ***************
 
-Kitsune scheduling system is based on django-chronograph. 
+Kitsune scheduling system is based on   `django-chronograph <https://bitbucket.org/wnielson/django-chronograph>`_. 
 
 
