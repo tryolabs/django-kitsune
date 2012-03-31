@@ -12,7 +12,7 @@
 Description
 ***********
 
-A Django Admin app to perform host checks. A control panel will be added to the Admin in order to configure hosts, checks and monitor check results.
+A Django Admin app to perform host server monitoring. A control panel will be added to the Admin in order to configure hosts, checks and monitor check results.
 
 Screenshots:
 
