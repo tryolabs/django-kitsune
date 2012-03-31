@@ -13,6 +13,10 @@ Description
 ***********
 
 A Django Admin app to perform host server monitoring. A control panel will be added to the Admin in order to configure hosts, checks and monitor check results.
+Notification rules can be defined to notify administrator users by mail.
+All host shall have access to a common database in order to get information about scheduled jobs and check jobs to run.
+
+
 
 Screenshots:
 
@@ -90,6 +94,13 @@ To install Kitsune:
 
 1. ``easy_install django-kitsune`` or download package and execute ``python setup.py install``
 2. Add ``'kitsune'`` to the ``INSTALLED_APPS`` in your project's ``settings.py``
+3. Configure ``cron`` in every host to run a kitsune management command by running ``crontab`` command:
+
+	* * * * * /path/to/your/project/manage.py cron
+
+Every minute cron will run a management command to check pending jobs.
+Note that both, django-kitsune and your project must be installed in each host, and each host must have access to the common database (where kitsune tables shall be stored).
+
 
 *************
 Configuration
