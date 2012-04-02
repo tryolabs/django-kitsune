@@ -31,40 +31,40 @@ Features
 ********
 
 * Hosts
-  Add hosts to monitor.
+  * Add hosts to monitor.
 
 * Checks
-  Add jobs with checks to be performed
-  Schedule
-  Check to be performed
-  Host to check
-  Select users or groups to be notified
-  Configure notification rules
-  Select how to render results
-  Set amount of log history to keep
+  * Add jobs with checks to be performed
+  * Schedule
+  * Check to be performed
+  * Host to check
+  * Select users or groups to be notified
+  * Configure notification rules
+  * Select how to render results
+  * Set amount of log history to keep
 
 * Custom Checks
-  You can implement your own checks by implementing a subclass of `kitsune.base.BaseKitsuneCheck`
+  * You can implement your own checks by implementing a subclass of `kitsune.base.BaseKitsuneCheck`
 
 * Nagios Checks
-  A builtin check is provided that wrapps any Nagios check.
-  You can use any existing Nagios check within django-kitsune
+  * A builtin check is provided that wrapps any Nagios check.
+  * You can use any existing Nagios check within django-kitsune
 
 * Logs
-  Log and list check results
+  * Log and list check results
 
 * Result Renderers
-  Can implement renderers by implementing a subclass of `kitsune.renderers.KitsuneJobRenderer`
-  Returns a html with the corresponding result that will be rendered within result listings.
+  * Can implement renderers by implementing a subclass of `kitsune.renderers.KitsuneJobRenderer`
+  * Returns a html with the corresponding result that will be rendered within result listings.
 
 * List Checks
-  Host name, last time performed, last result, next scheduled run.
+  * Host name, last time performed, last result, next scheduled run.
 
 * Notification Rules
-  Notifications through e-mail.
-  Configure who to notify: Groups or Users.
-  Configure when to trigger a notification.
-  Configure the frequency of notifications to avoid spam emails :)
+  * Notifications through e-mail.
+  * Configure who to notify: Groups or Users.
+  * Configure when to trigger a notification.
+  * Configure the frequency of notifications to avoid spam emails :)
 
 * All configurations are made through a graphic UI within admin panel.
 
@@ -87,7 +87,7 @@ To install Kitsune:
 2. Add ``'kitsune'`` to the ``INSTALLED_APPS`` in your project's ``settings.py``
 3. Configure ``cron`` in every host to run a kitsune management command by running ``crontab`` command::
 
-	``* * * * * /path/to/your/project/manage.py kitsune_cron``
+	* * * * * /path/to/your/project/manage.py kitsune_cron
 
 Every minute cron will run a management command to check pending jobs.
 Note that both, django-kitsune and your project must be installed in each host, and each host must have access to the common database (where kitsune tables shall be stored).
@@ -118,6 +118,7 @@ For example, to add a check_disk, do the following steps:
 
 1. Within Admin go to Kitsune -> Jobs -> Add job
 2. Fill the necessary fields, eg::
+
    * Name: check_disk
    * Host: select a job from the combobox
    * Command: select nagios wrapper: ``kitsune_nagios_check``
@@ -129,16 +130,18 @@ For example, to add a check_disk, do the following steps:
 3. Select the result Renderer, eg: KitsuneJobRenderer
 
 4. Configure scheduling options, eg: Frequency: Hourly, Params: ``interval:1``.
+   
    This will schedule the check to be run every 1 hour.
 
 5. Configure log options, last logs to keep specifies the last N logs to keep.
 
 6. Configure Notification rules.
+   
    Every check returns a status code of ``0=OK, 1=WARNING, 2=CRITICAL ERROR, 3=UNKNOWN ERROR`` with its corresponding status message.
    With notification rules you must set the:
 
    * ``Threshold`` (the status code to be reached)
-   * ``Rule type``, 
+   * ``Rule type``: 
 
      * ``Last time``: triggered when last result reached the threshold.
      * ``N last times``: triggered when last N results reached the threshold.
@@ -146,6 +149,7 @@ For example, to add a check_disk, do the following steps:
        ``Rule N`` and ``Rule M`` parameters.
 
 7. Notification frequency:
+
    * ``Interval unit``, ``Interval value`` sets the maximum frequency to receive email notifications. These are useful to avoid filling admin inbox with notification mails.
    * ``User/Group`` specifies the users or group of users to be notified. These must be staff users and shall be created within admin.
 
