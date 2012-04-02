@@ -31,9 +31,11 @@ Features
 ********
 
 * Hosts
+
   * Add hosts to monitor.
 
 * Checks
+
   * Add jobs with checks to be performed
   * Schedule
   * Check to be performed
@@ -44,23 +46,29 @@ Features
   * Set amount of log history to keep
 
 * Custom Checks
+
   * You can implement your own checks by implementing a subclass of `kitsune.base.BaseKitsuneCheck`
 
 * Nagios Checks
+
   * A builtin check is provided that wrapps any Nagios check.
   * You can use any existing Nagios check within django-kitsune
 
 * Logs
+
   * Log and list check results
 
 * Result Renderers
+
   * Can implement renderers by implementing a subclass of `kitsune.renderers.KitsuneJobRenderer`
   * Returns a html with the corresponding result that will be rendered within result listings.
 
 * List Checks
+
   * Host name, last time performed, last result, next scheduled run.
 
 * Notification Rules
+
   * Notifications through e-mail.
   * Configure who to notify: Groups or Users.
   * Configure when to trigger a notification.
@@ -117,7 +125,7 @@ Add a Nagios check
 For example, to add a check_disk, do the following steps:
 
 1. Within Admin go to Kitsune -> Jobs -> Add job
-2. Fill the necessary fields, eg::
+2. Fill the necessary fields, eg:
 
    * Name: check_disk
    * Host: select a job from the combobox
@@ -130,6 +138,8 @@ For example, to add a check_disk, do the following steps:
 3. Select the result Renderer, eg: KitsuneJobRenderer
 
 4. Configure scheduling options, eg: Frequency: Hourly, Params: ``interval:1``.
+
+   Params are semicolon-separated list of `rrule <http://labix.org/python-dateutil>`_ parameters.
    
    This will schedule the check to be run every 1 hour.
 
