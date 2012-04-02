@@ -1,6 +1,3 @@
-:Version: 
- 	0.1
-
 :Author:
 	Raul Garreta - Tryolabs <raul@tryolabs.com>
 
