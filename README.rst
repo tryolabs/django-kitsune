@@ -29,7 +29,7 @@ Features
 
 * Hosts
 
-  * Add hosts to monitor.
+  * Add hosts to monitor
 
 * Checks
 
