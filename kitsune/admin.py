@@ -31,8 +31,9 @@ from django.utils import dateformat
 from django.utils.datastructures import MultiValueDict
 from django.utils.html import escape
 from django.utils.safestring import mark_safe
+from django.utils.formats import get_format
 from django.utils.text import capfirst
-from django.utils.translation import ungettext, get_date_formats, ugettext_lazy as _
+from django.utils.translation import ungettext, ugettext_lazy as _
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User, Group
 
@@ -137,7 +138,7 @@ class JobAdmin(admin.ModelAdmin):
     search_fields = ('name', )
     
     def last_run_with_link(self, obj):
-        format = get_date_formats()[1]
+        format = get_format('DATE_FORMAT')
         value = capfirst(dateformat.format(obj.last_run, format))
         
         try:
@@ -156,7 +157,7 @@ class JobAdmin(admin.ModelAdmin):
     last_run_with_link.short_description = 'Last run'
     
     def get_timeuntil(self, obj):
-        format = get_date_formats()[1]
+        format = get_format('DATE_FORMAT')
         value = capfirst(dateformat.format(obj.next_run, format))
         return "%s<br /><span class='mini'>(%s)</span>" % (value, obj.get_timeuntil())
     get_timeuntil.admin_order_field = 'next_run'
