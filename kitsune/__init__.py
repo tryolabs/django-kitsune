@@ -1,4 +1,4 @@
-VERSION = (0, 2, 1)
+VERSION = (0, 2, 3)
 
 
 def get_version(svn=False, limit=3):
