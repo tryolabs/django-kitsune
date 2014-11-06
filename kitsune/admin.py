@@ -19,8 +19,8 @@ import os.path
 from datetime import datetime
 
 from django import forms
-from django.conf.urls.defaults import patterns, url
-from django.contrib import admin
+from django.conf.urls import patterns, url
+from django.contrib import admin, messages
 from django.core.management import get_commands
 from django.core.urlresolvers import reverse, NoReverseMatch
 from django.db import models
@@ -40,44 +40,44 @@ from django.contrib.auth.models import User, Group
 from kitsune.models import Job, Log, Host, NotificationUser, NotificationGroup
 from kitsune.renderers import STATUS_OK, STATUS_WARNING, STATUS_CRITICAL, STATUS_UNKNOWN
 from kitsune.base import BaseKitsuneCheck
- 
+
 
 def get_class(kls):
     parts = kls.split('.')
     module = ".".join(parts[:-1])
     m = __import__( module )
     for comp in parts[1:]:
-        m = getattr(m, comp)            
+        m = getattr(m, comp)
     return m
 
 class HTMLWidget(forms.Widget):
     def __init__(self,rel=None, attrs=None):
         self.rel = rel
         super(HTMLWidget, self).__init__(attrs)
-    
+
     def render(self, name, value, attrs=None):
         if self.rel is not None:
             key = self.rel.get_related_field().name
             obj = self.rel.to._default_manager.get(**{key: value})
             related_url = '../../../%s/%s/%d/' % (self.rel.to._meta.app_label, self.rel.to._meta.object_name.lower(), value)
             value = "<a href='%s'>%s</a>" % (related_url, escape(obj))
-            
+
         final_attrs = self.build_attrs(attrs, name=name)
         return mark_safe("<div%s>%s</div>" % (flatatt(final_attrs), linebreaks(value)))
 
 class NotificationUserInline(admin.TabularInline):
     model = NotificationUser
     extra = 1
-    
+
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "user":
             kwargs["queryset"] = User.objects.filter(is_staff=True)
         return super(NotificationUserInline, self).formfield_for_foreignkey(db_field, request, **kwargs)
-    
+
 class NotificationGroupInline(admin.TabularInline):
     model = NotificationGroup
     extra = 1
-    
+
 #from django.contrib.admin import SimpleListFilter
 #
 #class StatusCodeListFilter(SimpleListFilter):
@@ -113,7 +113,7 @@ class NotificationGroupInline(admin.TabularInline):
 #        # to decide how to filter the queryset.
 #        return queryset.filter(last_result__stderr=self.value())
 
-    
+
 class JobAdmin(admin.ModelAdmin):
     inlines = (NotificationUserInline, NotificationGroupInline)
     actions = ['run_selected_jobs']
@@ -133,14 +133,16 @@ class JobAdmin(admin.ModelAdmin):
         ('Log options', {
             'classes': ('wide',),
             'fields': ('last_logs_to_keep',)
-        }),     
+        }),
     )
     search_fields = ('name', )
-    
+
     def last_run_with_link(self, obj):
+        if not obj.last_run:
+            return _('Not yet ran')
         format = get_format('DATE_FORMAT')
         value = capfirst(dateformat.format(obj.last_run, format))
-        
+
         try:
             log_id = obj.log_set.latest('run_date').id
             try:
@@ -155,7 +157,7 @@ class JobAdmin(admin.ModelAdmin):
     last_run_with_link.admin_order_field = 'last_run'
     last_run_with_link.allow_tags = True
     last_run_with_link.short_description = 'Last run'
-    
+
     def get_timeuntil(self, obj):
         format = get_format('DATE_FORMAT')
         value = capfirst(dateformat.format(obj.next_run, format))
@@ -163,7 +165,7 @@ class JobAdmin(admin.ModelAdmin):
     get_timeuntil.admin_order_field = 'next_run'
     get_timeuntil.allow_tags = True
     get_timeuntil.short_description = _('next scheduled run')
-    
+
     def get_frequency(self, obj):
         freq = capfirst(obj.frequency.lower())
         if obj.params:
@@ -171,13 +173,13 @@ class JobAdmin(admin.ModelAdmin):
         return freq
     get_frequency.admin_order_field = 'frequency'
     get_frequency.short_description = 'Frequency'
-    
+
     def run_button(self, obj):
         on_click = "window.location='%d/run/?inline=1';" % obj.id
         return '<input type="button" onclick="%s" value="Run" />' % on_click
     run_button.allow_tags = True
     run_button.short_description = 'Run'
-    
+
     def status_code(self, obj):
         if obj.last_result is not None:
             Renderer = get_class(obj.renderer)
@@ -186,7 +188,7 @@ class JobAdmin(admin.ModelAdmin):
             return '--'
     status_code.allow_tags = True
     status_code.short_description = 'Status Code'
-    
+
     def status_message(self, obj):
         if obj.last_result is not None:
             Renderer = get_class(obj.renderer)
@@ -195,13 +197,13 @@ class JobAdmin(admin.ModelAdmin):
             return '--'
     status_message.allow_tags = True
     status_message.short_description = 'Status Message'
-        
+
     def view_logs_button(self, obj):
         on_click = "window.location='../log/?job=%d';" % obj.id
         return '<input type="button" onclick="%s" value="View Logs" />' % on_click
     view_logs_button.allow_tags = True
     view_logs_button.short_description = 'Logs'
-    
+
     def run_job_view(self, request, pk):
         """
         Runs the specified job.
@@ -210,24 +212,33 @@ class JobAdmin(admin.ModelAdmin):
             job = Job.objects.get(pk=pk)
         except Job.DoesNotExist:
             raise Http404
+
         # Rather than actually running the Job right now, we
         # simply force the Job to be run by the next cron job
         job.force_run = True
         job.save()
-        request.user.message_set.create(message=_('The job "%(job)s" has been scheduled to run.') % {'job': job})        
+
+        msg = _('The job "%(job)s" has been scheduled to run.') % {'job': job}
+        messages.info(request, msg)
+
         if 'inline' in request.GET:
             redirect = request.path + '../../'
         else:
             redirect = request.REQUEST.get('next', request.path + "../")
         return HttpResponseRedirect(redirect)
-    
+
     def get_urls(self):
         urls = super(JobAdmin, self).get_urls()
-        my_urls = patterns('',
-            url(r'^(.+)/run/$', self.admin_site.admin_view(self.run_job_view), name="kitsune_job_run")
+        my_urls = patterns(
+            '',
+            url(
+                r'^(.+)/run/$',
+                self.admin_site.admin_view(self.run_job_view),
+                name="kitsune_job_run"
+            )
         )
         return my_urls + urls
-    
+
     def run_selected_jobs(self, request, queryset):
         rows_updated = queryset.update(next_run=datetime.now())
         if rows_updated == 1:
@@ -236,10 +247,10 @@ class JobAdmin(admin.ModelAdmin):
             message_bit = "%s jobs were" % rows_updated
         self.message_user(request, "%s successfully set to run." % message_bit)
     run_selected_jobs.short_description = "Run selected jobs"
-    
+
     def formfield_for_dbfield(self, db_field, **kwargs):
         request = kwargs.pop("request", None)
-        
+
         # Add a select field of available commands
         if db_field.name == 'command':
             choices_dict = MultiValueDict()
@@ -248,7 +259,7 @@ class JobAdmin(admin.ModelAdmin):
             l = get_kitsune_checks()
             for command, app in l:
                 choices_dict.appendlist(app, command)
-            
+
             choices = []
             for key in choices_dict.keys():
                 #if str(key).startswith('<'):
@@ -256,15 +267,15 @@ class JobAdmin(admin.ModelAdmin):
                 commands = choices_dict.getlist(key)
                 commands.sort()
                 choices.append([key, [[c,c] for c in commands]])
-                
+
             kwargs['widget'] = forms.widgets.Select(choices=choices)
             return db_field.formfield(**kwargs)
-        kwargs['request'] = request    
+        kwargs['request'] = request
         return super(JobAdmin, self).formfield_for_dbfield(db_field, **kwargs)
 
 
 def get_kitsune_checks():
-    
+
     # Find the installed apps
     try:
         from django.conf import settings
@@ -274,7 +285,7 @@ def get_kitsune_checks():
 
     paths = []
     choices = []
-    
+
     for app in apps:
         paths.append((app, app + '.management.commands'))
 
@@ -289,7 +300,7 @@ def get_kitsune_checks():
                 m2 = sys.modules[package + '.' + name]
                 for _, obj in inspect.getmembers(m2):
                     if inspect.isclass(obj) and issubclass(obj, BaseKitsuneCheck) and issubclass(obj, BaseCommand):
-                        if not pair in choices:
+                        if pair not in choices:
                             choices.append(pair)
         except:
             pass
@@ -297,7 +308,7 @@ def get_kitsune_checks():
 
 
 class LogAdmin(admin.ModelAdmin):
-    list_display = ('job_name', 'run_date', 'job_success', 'output', 'errors', )
+    list_display = ('job_name', 'run_date', 'job_success', 'output', 'errors',)
     search_fields = ('stdout', 'stderr', 'job__name', 'job__command')
     date_hierarchy = 'run_date'
     fieldsets = (
@@ -308,7 +319,7 @@ class LogAdmin(admin.ModelAdmin):
             'fields': ('stdout', 'stderr',)
         }),
     )
-    
+
     def job_name(self, obj):
         return obj.job.name
     job_name.short_description = _(u'Name')
@@ -325,7 +336,7 @@ class LogAdmin(admin.ModelAdmin):
         else:
             return '--'
     output.allow_tags = True
-    
+
     def errors(self, obj):
         if obj.stderr is not None:
             Renderer = get_class(obj.job.renderer)
@@ -333,21 +344,21 @@ class LogAdmin(admin.ModelAdmin):
         else:
             return '--'
     errors.allow_tags = True
-    
+
     def has_add_permission(self, request):
         return False
-    
+
     def formfield_for_dbfield(self, db_field, **kwargs):
         request = kwargs.pop("request", None)
-        
+
         if isinstance(db_field, models.TextField):
             kwargs['widget'] = HTMLWidget()
             return db_field.formfield(**kwargs)
-        
+
         if isinstance(db_field, models.ForeignKey):
             kwargs['widget'] = HTMLWidget(db_field.rel)
             return db_field.formfield(**kwargs)
-        
+
         return super(LogAdmin, self).formfield_for_dbfield(db_field, **kwargs)
 
 try:
@@ -358,10 +369,3 @@ except admin.sites.AlreadyRegistered:
 admin.site.register(Log, LogAdmin)
 #admin.site.register(Log)
 admin.site.register(Host)
-
-
-
-
-    
-    
-    
