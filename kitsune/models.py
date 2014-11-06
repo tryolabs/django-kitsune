@@ -174,7 +174,7 @@ class Job(models.Model):
         if self.disabled:
             return _('never (disabled)')
 
-        delta = self.next_run - datetime.now()
+        delta = self.next_run - datetime.now(self.next_run.tzinfo)
         if delta.days < 0:
             # The job is past due and should be run as soon as possible
             return _('due')
